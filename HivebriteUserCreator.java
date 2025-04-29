@@ -10,8 +10,15 @@ public class HivebriteUserCreator {
     private static final String API_KEY = "REPLACE";  
     private static final String URL = "https://weglobal.us.hivebrite.com/api/admin/v1/users";
 
-    // dictionary of the different roles to subnetwork ids
-    private static final Map<String, Integer> roleToSubNetworkId = new HashMap<>() {{
+    private static final Map<String, Integer> roleNameToRoleId = new HashMap<>() {{
+        put("VIP Lifetime Membership", 659);
+        put("Free Gold membership 12 Months", 744);
+        put("Free", 579);
+        put("Business Essentials", 5588);
+        put("Business Growth & Elite", 5589);
+    }};
+
+    private static final Map<String, Integer> clusterToSubNetworkId = new HashMap<>() {{
         put("Undefined", 1879);
         put("Founder", 2550);
         put("Funder", 2552);
@@ -30,22 +37,28 @@ public class HivebriteUserCreator {
         put("Velocity Studio Founder", 12056);
     }};
 
+    private static final Map<String, Integer> groupNameToGroupId = new HashMap<>() {{
 
-    public static void createHivebriteUser(String firstName, String lastName, String email, String roleName) {
+    }};
+
+
+    public static void createHivebriteUser(String firstName, String lastName, String email, String clusterName, String roleName) {
         try {
-            if (!roleToSubNetworkId.containsKey(roleName)) {
-                System.err.println("Error: Unknown role '" + roleName + "'");
+            if (!clusterToSubNetworkId.containsKey(clusterName)) {
+                System.err.println("Error: Unknown cluster '" + clusterName + "'");
                 return;
             }
 
-            int subNetworkId = roleToSubNetworkId.get(roleName);
+            int subNetworkId = clusterToSubNetworkId.get(clusterName);
+            int roleId = roleNameToRoleId.get(roleName);
 
             HttpClient client = HttpClient.newHttpClient();
 
             String jsonPayload = String.format(
-                "{ \"user\": { \"firstname\": \"%s\", \"lastname\": \"%s\", \"email\": \"%s\", \"sub_network_ids\": [%d] } }",
-                firstName, lastName, email, subNetworkId
+                "{ \"user\": { \"firstname\": \"%s\", \"lastname\": \"%s\", \"email\": \"%s\", \"sub_network_ids\": [%d], \"role_id\": %d } }",
+                firstName, lastName, email, subNetworkId, roleId
             );
+
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(URL))
@@ -65,6 +78,6 @@ public class HivebriteUserCreator {
     }
 
     public static void main(String[] args) {
-        createHivebriteUser("Test", "Account", "test_account@example.com", "Undefined");
+        createHivebriteUser("Test", "Account", "test_account@example.com", "Undefined", "Free");
     }
 }
