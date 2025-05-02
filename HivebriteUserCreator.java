@@ -4,11 +4,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.regex.*;
 
 public class HivebriteUserCreator {
 
     private static final String API_KEY = "REPLACE";  
-    private static final String URL = "https://weglobal.us.hivebrite.com/api/admin/v1/users";
+    private static final String CREATE_USER_URL = "https://weglobal.us.hivebrite.com/api/admin/v1/users";
+    private static final String TOPICS_USERS_URL = "https://weglobal.us.hivebrite.com/api/admin/v2/topics/users";
 
     private static final Map<String, Integer> roleNameToRoleId = new HashMap<>() {{
         put("VIP Lifetime Membership", 659);
@@ -61,7 +63,7 @@ public class HivebriteUserCreator {
 
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(URL))
+                    .uri(URI.create(CREATE_USER_URL))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + API_KEY)
                     .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
@@ -72,7 +74,43 @@ public class HivebriteUserCreator {
             System.out.println("Response code: " + response.statusCode());
             System.out.println("Response body: " + response.body());
 
+            Pattern pattern = Pattern.compile("\"user\"\\s*:\\s*\\{[^}]*?\"id\"\\s*:\\s*(\\d+)");
+            Matcher matcher = pattern.matcher(response.body());
+
+            if (matcher.find()) {
+                int userId = Integer.parseInt(matcher.group(1));
+                addUserToGroup(client, userId, 34828, false); //right now, just adding to WEscore group
+            } else {
+                System.err.println("Could not extract user_id from response.");
+            }
+
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void addUserToGroup(HttpClient client, int userId, int groupId, boolean sendEmailInvite) {
+        try {
+            String body = String.format(
+                "{ \"send_email_invitation\": %s, " +
+                "\"members\": [ { \"group_id\": %d, \"user_ids\": [%d] } ] }",
+                sendEmailInvite, groupId, userId
+            );
+
+            HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(TOPICS_USERS_URL))    
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + API_KEY)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+            HttpResponse<String> resp =
+                client.send(req, HttpResponse.BodyHandlers.ofString());
+
+            System.out.println("[TOPICS/USERS] code: " + resp.statusCode());
+            System.out.println("[TOPICS/USERS] body: " + resp.body());
+        } catch (Exception e) {
+            System.err.printf("Could not add user %d to group %d%n", userId, groupId);
             e.printStackTrace();
         }
     }
