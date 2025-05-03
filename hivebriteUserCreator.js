@@ -45,18 +45,18 @@ const groupNameToGroupId = {
     "Scaling": 3644,
     "University Entrepreneurs": 3015,
     "Velocity Studio": 14662,
-  };
-  
-  
+};
 
-async function createHivebriteUser(firstName, lastName, email, clusterName, roleName) {
+async function createHivebriteUserFromData(d) {
+    const { firstName, lastName, email, clusterName = "Founder", plan } = d;
+
     if (!clusterToSubNetworkId.hasOwnProperty(clusterName)) {
         console.error(`Error: Unknown cluster '${clusterName}'`);
         return;
     }
 
     const subNetworkId = clusterToSubNetworkId[clusterName];
-    const roleId = roleNameToRoleId[roleName];
+    const roleId = plan === "Essentials" ? roleNameToRoleId["Business Essentials"] : roleNameToRoleId["Business Growth & Elite"];
 
     const jsonPayload = JSON.stringify({
         user: {
@@ -83,11 +83,19 @@ async function createHivebriteUser(firstName, lastName, email, clusterName, role
         console.log(`Response body:`, responseBody);
 
         const userId = responseBody.user?.id;
-        if (userId) {
-            addUserToGroup(userId, 34828, false); // Add to WEscore group
-        } else {
+        if (!userId) {
             console.error("Could not extract user_id from response.");
+            return;
         }
+
+        if (plan === "Essentials") {
+            await addUserToGroup(userId, groupNameToGroupId["WEscore"], false);
+        } else {
+            for (const groupId of Object.values(groupNameToGroupId)) {
+                await addUserToGroup(userId, groupId, false);
+            }
+        }
+
     } catch (error) {
         console.error("Error while creating user:", error);
     }
@@ -113,12 +121,18 @@ async function addUserToGroup(userId, groupId, sendEmailInvite) {
         });
 
         const responseBody = await response.json();
-        console.log(`[TOPICS/USERS] code: ${response.status}`);
-        console.log(`[TOPICS/USERS] body:`, responseBody);
+        console.log(`Topics code: ${response.status}`);
+        console.log(`Users body:`, responseBody);
     } catch (error) {
         console.error(`Could not add user ${userId} to group ${groupId}`, error);
     }
 }
 
-// Example usage
-createHivebriteUser("Test", "Account", "test_account@example.com", "Founder", "Free");
+const d = {
+    firstName: "Test",
+    lastName: "Account",
+    email: "test_account@example.com",
+    plan: "Growth",
+};
+
+createHivebriteUserFromData(d);
